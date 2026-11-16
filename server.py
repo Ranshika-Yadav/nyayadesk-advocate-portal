@@ -131,4 +131,4 @@ class Handler(BaseHTTPRequestHandler):
   try:self.route()
   except Exception as e:self.reply(400,{'error':str(e)[:180]})
 if __name__=='__main__':
- init();print(f'NyayaDesk running at http://localhost:{PORT}',flush=True);ThreadingHTTPServer(('127.0.0.1',PORT),Handler).serve_forever()
+init();print(f'NyayaDesk running on port {PORT}',flush=True);ThreadingHTTPServer(('0.0.0.0',PORT),Handler).serve_forever()
