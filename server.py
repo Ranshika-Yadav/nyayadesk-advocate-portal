@@ -1,35 +1,3 @@
-"""NyayaDesk self-hosted demo backend: stdlib Python + SQLite."""
-import os, json, sqlite3, secrets, hashlib, hmac, time, mimetypes, pathlib, re, urllib.parse, urllib.request, threading
-from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from http.cookies import SimpleCookie
-ROOT=pathlib.Path(__file__).resolve().parent
-DATA=ROOT/'data'; DATA.mkdir(exist_ok=True)
-FILES=DATA/'uploads'; FILES.mkdir(exist_ok=True)
-DB=DATA/'nyayadesk.sqlite3'; PORT=int(os.environ.get('PORT','8080'))
-SESSIONS={}; LOCK=threading.RLock()
-def conn():
- c=sqlite3.connect(DB,timeout=20);c.row_factory=sqlite3.Row;return c
-def init():
- with conn() as c:
-  c.executescript('''CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,email TEXT UNIQUE NOT NULL,salt TEXT NOT NULL,password TEXT NOT NULL);CREATE TABLE IF NOT EXISTS cases(user_id INTEGER PRIMARY KEY,payload TEXT NOT NULL);CREATE TABLE IF NOT EXISTS clients(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,name TEXT NOT NULL,email TEXT,phone TEXT,notes TEXT);CREATE TABLE IF NOT EXISTS reminders(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,case_id INTEGER,description TEXT NOT NULL,due TEXT NOT NULL,done INTEGER DEFAULT 0);CREATE TABLE IF NOT EXISTS documents(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,case_id INTEGER NOT NULL,name TEXT NOT NULL,stored TEXT NOT NULL,mime TEXT,size INTEGER NOT NULL,created TEXT DEFAULT CURRENT_TIMESTAMP);''')
-def hashpass(p,s):return hashlib.pbkdf2_hmac('sha256',p.encode(),bytes.fromhex(s),260000).hex()
-class Handler(BaseHTTPRequestHandler):
- def log_message(self,*args):pass
- def reply(self,status,obj,cookie=None):
-  raw=json.dumps(obj).encode();self.send_response(status);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Content-Length',str(len(raw)));self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff');self.send_header('Content-Security-Policy',"frame-ancestors 'none'")
-  if cookie:self.send_header('Set-Cookie',cookie)
-  self.end_headers();self.wfile.write(raw)
- def body(self,maxsize=4_000_000):
-  n=int(self.headers.get('Content-Length','0'))
-  if n<0 or n>maxsize:raise ValueError('Request exceeds size limit')
-  return self.rfile.read(n)
- def jsonbody(self):return json.loads(self.body())
- def user(self):
-  cookie=SimpleCookie();cookie.load(self.headers.get('Cookie',''))
-  sid=cookie.get('nyayadesk_session'); item=SESSIONS.get(sid.value) if sid else None
-  return item[0] if item and item[1]>time.time() else None
- def auth(self):
-  uid=self.user()
   if uid is None:self.reply(401,{'error':'Please sign in'})
   return uid
  def route(self):
@@ -131,4 +99,4 @@ class Handler(BaseHTTPRequestHandler):
   try:self.route()
   except Exception as e:self.reply(400,{'error':str(e)[:180]})
 if __name__=='__main__':
-init();print(f'NyayaDesk running on port {PORT}',flush=True);ThreadingHTTPServer(('0.0.0.0',PORT),Handler).serve_forever()
+    init();print(f'NyayaDesk running on port {PORT}',flush=True);ThreadingHTTPServer(('0.0.0.0',PORT),Handler).serve_forever()
